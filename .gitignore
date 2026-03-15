@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+*.pem
+
+# Editor and OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# n8n local data (if running locally)
+.n8n/
+
+# Logs and temp
+*.log
+tmp/
+temp/

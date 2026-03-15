@@ -1,0 +1,171 @@
+{
+  "name": "website maker(done)",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "0660fb27-05ee-47fa-a818-f7520c055580",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/responses",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-5-mini\",\n  \"input\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You write Shopify policy/support pages. Return ONLY valid JSON. The HTML must be simple, clean, and trustworthy. No markdown, no code fences.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Brand name: {{ $json.brand_name || 'Nexora Supply Co.' }}\\nTagline: {{ $json.brand_tagline || 'Smart finds. Done right.' }}\\nTone: {{ $json.tone || 'professional' }}\\nMarket: {{ $json.country_market || 'worldwide' }}\\n\\nCreate 4 Shopify pages as HTML. Keep them realistic (no fake addresses). Include:\\n1) About Us (short story + trust)\\n2) Shipping & Returns (clear timeframes, tracking, refunds)\\n3) FAQ (6-10 Qs)\\n4) Contact Us (email form style text, response time)\\n\\nReturn JSON fields: about_title, about_body_html, shipping_title, shipping_body_html, faq_title, faq_body_html, contact_title, contact_body_html.\"\n    }\n  ],\n  \"text\": {\n    \"format\": {\n      \"type\": \"json_schema\",\n      \"name\": \"pages_schema\",\n      \"strict\": true,\n      \"schema\": {\n        \"type\": \"object\",\n        \"additionalProperties\": false,\n        \"properties\": {\n          \"about_title\": { \"type\": \"string\" },\n          \"about_body_html\": { \"type\": \"string\" },\n          \"shipping_title\": { \"type\": \"string\" },\n          \"shipping_body_html\": { \"type\": \"string\" },\n          \"faq_title\": { \"type\": \"string\" },\n          \"faq_body_html\": { \"type\": \"string\" },\n          \"contact_title\": { \"type\": \"string\" },\n          \"contact_body_html\": { \"type\": \"string\" }\n        },\n        \"required\": [\n          \"about_title\",\n          \"about_body_html\",\n          \"shipping_title\",\n          \"shipping_body_html\",\n          \"faq_title\",\n          \"faq_body_html\",\n          \"contact_title\",\n          \"contact_body_html\"\n        ]\n      }\n    }\n  }\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        400,
+        -16
+      ],
+      "id": "d10643ba-0100-4fa0-a28d-c094969851ee",
+      "name": "3 - OpenAI Generate Pages",
+      "credentials": {
+        "openAiApi": {
+          "id": "WIHz1cTpIL3mNXqc",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Node 4 - Split Pages (Run Once for All Items)\n\nconst resp = $json?.body ?? $json;\n\n// Extract text from Responses API output\nfunction getText(r) {\n  if (!r || !Array.isArray(r.output)) throw new Error(\"No `output` array in OpenAI response.\");\n  for (const item of r.output) {\n    for (const c of (item.content ?? [])) {\n      if (typeof c?.text === \"string\" && c.text.trim()) return c.text;\n    }\n  }\n  throw new Error(\"No text found inside `output.content.text`.\");\n}\n\nconst parsed = JSON.parse(getText(resp));\n\nconst pages = [\n  { title: parsed.about_title, body_html: parsed.about_body_html },\n  { title: parsed.shipping_title, body_html: parsed.shipping_body_html },\n  { title: parsed.faq_title, body_html: parsed.faq_body_html },\n  { title: parsed.contact_title, body_html: parsed.contact_body_html }\n];\n\nreturn pages.map(p => ({ json: p }));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        608,
+        -16
+      ],
+      "id": "b53cfb13-b397-446b-9a6c-d76c5b3bafcd",
+      "name": "4 - Split Pages"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://nexora-supply-co.myshopify.com/admin/api/2025-10/pages.json",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "shopifyAccessTokenApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"page\": {\n    \"title\": {{ JSON.stringify($json.title) }},\n    \"body_html\": {{ JSON.stringify($json.body_html) }},\n    \"published\": true\n  }\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        816,
+        -16
+      ],
+      "id": "35118fe2-55b2-4782-95e5-dfd296bacef1",
+      "name": "5 - Shopify Create Page",
+      "credentials": {
+        "shopifyAccessTokenApi": {
+          "id": "hmW6aMpH08OwJ8om",
+          "name": "Shopify Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appMsnHMgCFrIJOyd",
+          "mode": "list",
+          "cachedResultName": "Dropship OS",
+          "cachedResultUrl": "https://airtable.com/appMsnHMgCFrIJOyd"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblqyqhLCmHRa6raP",
+          "mode": "list",
+          "cachedResultName": "Settings",
+          "cachedResultUrl": "https://airtable.com/appMsnHMgCFrIJOyd/tblqyqhLCmHRa6raP"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        192,
+        -16
+      ],
+      "id": "e8fabc51-063b-4bfb-9385-675dd4f9b5fd",
+      "name": "2 - Airtable Get Settings",
+      "executeOnce": false,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "DzcofrIEKRt7REFn",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "2 - Airtable Get Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3 - OpenAI Generate Pages": {
+      "main": [
+        [
+          {
+            "node": "4 - Split Pages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "4 - Split Pages": {
+      "main": [
+        [
+          {
+            "node": "5 - Shopify Create Page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2 - Airtable Get Settings": {
+      "main": [
+        [
+          {
+            "node": "3 - OpenAI Generate Pages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "pinData": {},
+  "triggerCount": 0,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

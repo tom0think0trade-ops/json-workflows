@@ -1,0 +1,748 @@
+{
+  "name": "Product research to Airtable",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -272,
+        -64
+      ],
+      "id": "e955bb25-5470-41db-962e-20fc7bc5876d",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appMsnHMgCFrIJOyd",
+          "mode": "list",
+          "cachedResultName": "Dropship OS",
+          "cachedResultUrl": "https://airtable.com/appMsnHMgCFrIJOyd"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblqyqhLCmHRa6raP",
+          "mode": "list",
+          "cachedResultName": "Settings",
+          "cachedResultUrl": "https://airtable.com/appMsnHMgCFrIJOyd/tblqyqhLCmHRa6raP"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        -64,
+        -64
+      ],
+      "id": "70dee7d4-1e7e-417d-b273-2ea3fb542bec",
+      "name": "Search records",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "DzcofrIEKRt7REFn",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "a2142968-ef40-462a-8ddc-942a35943e5d",
+              "leftValue": "={{ $json.active }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        144,
+        -64
+      ],
+      "id": "448f86af-5fba-4636-874d-27b25459783c",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/responses",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-5-mini\",\n  \"input\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are a product research engine for a dropshipping store. Return ONLY valid JSON.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Find 5 non-restricted, non-branded, trending products suitable for {{ $json.niche_focus }} (or general if auto). Market: {{ $json.country_market }}. Max cost: {{ $json.max_product_cost }}. Minimum margin multiplier: {{ $json.min_margin_multiplier }}. Include supplier_url and 3 image_urls each.\"\n    }\n  ],\n  \"text\": {\n    \"format\": {\n      \"type\": \"json_schema\",\n      \"name\": \"products_schema\",\n      \"strict\": true,\n      \"schema\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"products\": {\n            \"type\": \"array\",\n            \"items\": {\n              \"type\": \"object\",\n              \"additionalProperties\": false,\n              \"properties\": {\n                \"title\": {\"type\": \"string\"},\n                \"supplier\": {\"type\": \"string\"},\n                \"supplier_url\": {\"type\": \"string\"},\n                \"cost\": {\"type\": \"number\"},\n                \"suggested_price\": {\"type\": \"number\"},\n                \"margin_multiplier\": {\"type\": \"number\"},\n                \"why_it_wins\": {\"type\": \"string\"},\n                \"risks\": {\"type\": \"string\"},\n                \"seo_keywords\": {\"type\": \"string\"},\n                \"image_urls\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}\n              },\n              \"required\": [\"title\",\"supplier\",\"supplier_url\",\"cost\",\"suggested_price\",\"margin_multiplier\",\"why_it_wins\",\"risks\",\"seo_keywords\",\"image_urls\"]\n            }\n          }\n        },\n        \"required\": [\"products\"],\n        \"additionalProperties\": false\n      }\n    }\n  }\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        400,
+        -16
+      ],
+      "id": "8e4feecd-f5bf-4586-b8d4-0729ab00acd8",
+      "name": "HTTP Request",
+      "credentials": {
+        "openAiApi": {
+          "id": "WIHz1cTpIL3mNXqc",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "appMsnHMgCFrIJOyd",
+          "mode": "list",
+          "cachedResultName": "Dropship OS",
+          "cachedResultUrl": "https://airtable.com/appMsnHMgCFrIJOyd"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblaZDUWDx8ad9EIR",
+          "mode": "list",
+          "cachedResultName": "PromptsLog",
+          "cachedResultUrl": "https://airtable.com/appMsnHMgCFrIJOyd/tblaZDUWDx8ad9EIR"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "type": "research",
+            "created_at": "={{ $now }}",
+            "PromptsLog": "null",
+            "output_json": "={{ \n  $items(\"HTTP Request\")[0].json.output\n    ?.find(o => o.type === \"message\")\n    ?.content?.find(c => c.type === \"output_text\")\n    ?.text ?? \"\"\n}}\n",
+            "input": "=niche focus; {{ $json.niche_focus }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "PromptsLog",
+              "displayName": "PromptsLog",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "type",
+              "displayName": "type",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "research",
+                  "value": "research"
+                },
+                {
+                  "name": "copy",
+                  "value": "copy"
+                },
+                {
+                  "name": "seo",
+                  "value": "seo"
+                },
+                {
+                  "name": "ads",
+                  "value": "ads"
+                },
+                {
+                  "name": "report",
+                  "value": "report"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "input",
+              "displayName": "input",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "output_json",
+              "displayName": "output_json",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        816,
+        -112
+      ],
+      "id": "8b3cbcac-78ff-4f13-b0e6-808885997e5d",
+      "name": "Create a record",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "DzcofrIEKRt7REFn",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        624,
+        -64
+      ],
+      "id": "57e9fda4-7a25-4e1d-8cfc-fdc41268c026",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Node: 6 - Parse Products JSON\n// Mode: Run Once for All Items\n\nconst crypto = require('crypto'); // available in n8n Cloud :contentReference[oaicite:8]{index=8}\n\nconst resp = $json?.body ?? $json;\n\n// Extract assistant text from OpenAI Responses API (raw HTTP response uses `output`) :contentReference[oaicite:9]{index=9}\nfunction extractTextFromResponsesAPI(r) {\n  if (!r) return null;\n  if (typeof r === 'string') return r;\n\n  const out = r.output;\n  if (!Array.isArray(out)) return null;\n\n  for (const item of out) {\n    const content = item?.content;\n    if (!Array.isArray(content)) continue;\n\n    for (const c of content) {\n      if (typeof c?.text === 'string' && c.text.trim()) return c.text;\n    }\n  }\n  return null;\n}\n\nfunction normalizeUrl(u) {\n  if (!u || typeof u !== 'string') return '';\n  let s = u.trim();\n  s = s.split('#')[0];\n  s = s.split('?')[0];\n  try {\n    const url = new URL(s);\n    url.hash = '';\n    url.search = '';\n    url.hostname = url.hostname.replace(/^www\\./, '');\n    return url.toString().replace(/\\/$/, '');\n  } catch {\n    return s.replace(/\\/$/, '');\n  }\n}\n\nfunction sha256(text) {\n  return crypto.createHash('sha256').update(text).digest('hex');\n}\n\nconst text = extractTextFromResponsesAPI(resp);\nif (!text) {\n  throw new Error(\"OpenAI response had no output text. Check Node 4 output shape (should include `output`).\");\n}\n\nlet parsed;\ntry {\n  parsed = JSON.parse(text);\n} catch (e) {\n  // salvage attempt if extra text accidentally wrapped JSON\n  const a = text.indexOf('{');\n  const b = text.lastIndexOf('}');\n  if (a >= 0 && b > a) parsed = JSON.parse(text.slice(a, b + 1));\n  else throw new Error(\"Model output wasn't valid JSON. Raw text:\\n\" + text);\n}\n\nif (!Array.isArray(parsed.products)) {\n  throw new Error(\"Parsed JSON missing `products` array.\");\n}\n\nreturn parsed.products.map((p) => {\n  const supplierUrl = String(p.supplier_url ?? '').trim();\n  const supplierUrlNorm = normalizeUrl(supplierUrl);\n\n  // fingerprint: SHA256(normalized URL). You can add title too if you want:\n  // const fp = sha256(`${supplierUrlNorm}|${String(p.title ?? '').trim().toLowerCase()}`);\n  const fp = sha256(supplierUrlNorm);\n\n  return {\n    json: {\n      status: \"review\",\n      title: String(p.title ?? \"\").trim(),\n      supplier: String(p.supplier ?? \"\").trim(),\n      supplier_url: supplierUrl,\n      supplier_url_normalized: supplierUrlNorm,\n      fingerprint: fp,\n      cost: Number(p.cost ?? 0),\n      suggested_price: Number(p.suggested_price ?? 0),\n      margin_multiplier: Number(p.margin_multiplier ?? 0),\n      why_it_wins: String(p.why_it_wins ?? \"\"),\n      risks: String(p.risks ?? \"\"),\n      seo_keywords: String(p.seo_keywords ?? \"\"),\n      image_urls: Array.isArray(p.image_urls) ? p.image_urls.join(\"\\n\") : \"\"\n    }\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        656,
+        96
+      ],
+      "id": "267408a7-dd53-4311-9c1e-ab688950464d",
+      "name": "6 - Parse Products JSON"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        864,
+        96
+      ],
+      "id": "90a6f807-bc63-4e19-8aad-2c89492c0b7a",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appMsnHMgCFrIJOyd",
+          "mode": "list",
+          "cachedResultName": "Dropship OS",
+          "cachedResultUrl": "https://airtable.com/appMsnHMgCFrIJOyd"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblmnem8cNfkEqtDF",
+          "mode": "list",
+          "cachedResultName": "Products",
+          "cachedResultUrl": "https://airtable.com/appMsnHMgCFrIJOyd/tblmnem8cNfkEqtDF"
+        },
+        "filterByFormula": "=AND({fingerprint}='{{$json.fingerprint}}', NOT({ever_tested}))\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        1136,
+        112
+      ],
+      "id": "50cf291b-4568-4ee6-9d4b-996682f89121",
+      "name": "Search records1",
+      "alwaysOutputData": true,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "DzcofrIEKRt7REFn",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "8cb507ce-fc85-4103-ad61-2a8e8e0333ac",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "={{ $json.is_duplicate }}\n",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1360,
+        48
+      ],
+      "id": "37d91a43-9192-4b23-8c4f-0cab8857e054",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "appMsnHMgCFrIJOyd",
+          "mode": "list",
+          "cachedResultName": "Dropship OS",
+          "cachedResultUrl": "https://airtable.com/appMsnHMgCFrIJOyd"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblmnem8cNfkEqtDF",
+          "mode": "list",
+          "cachedResultName": "Products",
+          "cachedResultUrl": "https://airtable.com/appMsnHMgCFrIJOyd/tblmnem8cNfkEqtDF"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ever_tested": false,
+            "cost": "={{ $json.cost }}",
+            "suggested_price": "={{ $json.suggested_price }}",
+            "margin_multiplier": "={{ $json.margin_multiplier }}",
+            "status": "review",
+            "title": "={{ $json.title }}",
+            "supplier": "={{ $json.supplier }}",
+            "Supplier_url": "={{ $json.Supplier_url }}",
+            "fingerprint": "={{ $json.fingerprint }}",
+            "why_it_wins": "={{ $json.why_it_wins }}",
+            "risks": "={{ $json.risks }}",
+            "seo_keywords": "={{ $json.seo_keywords }}",
+            "image_urls": "={{ $json.image_urls }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Products",
+              "displayName": "Products",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "new",
+                  "value": "new"
+                },
+                {
+                  "name": "review",
+                  "value": "review"
+                },
+                {
+                  "name": "approved",
+                  "value": "approved"
+                },
+                {
+                  "name": "uploaded",
+                  "value": "uploaded"
+                },
+                {
+                  "name": "rejected",
+                  "value": "rejected"
+                },
+                {
+                  "name": "archived",
+                  "value": "archived"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "title",
+              "displayName": "title",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "supplier",
+              "displayName": "supplier",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Supplier_url",
+              "displayName": "Supplier_url",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "cost",
+              "displayName": "cost",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "suggested_price",
+              "displayName": "suggested_price",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "margin_multiplier",
+              "displayName": "margin_multiplier",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "why_it_wins",
+              "displayName": "why_it_wins",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "risks",
+              "displayName": "risks",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "seo_keywords",
+              "displayName": "seo_keywords",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "image_urls",
+              "displayName": "image_urls",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "shopify_product_id",
+              "displayName": "shopify_product_id",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "fingerprint",
+              "displayName": "fingerprint",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "ever_tested",
+              "displayName": "ever_tested",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "boolean",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        1584,
+        64
+      ],
+      "id": "de61454b-de8c-4b5d-b9c8-329e5361a772",
+      "name": "Create a record1",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "DzcofrIEKRt7REFn",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Search records",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search records": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          },
+          {
+            "node": "6 - Parse Products JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a record": {
+      "main": [
+        []
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Create a record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "6 - Parse Products JSON": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Search records1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search records1": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create a record1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a record1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "pinData": {},
+  "triggerCount": 0,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

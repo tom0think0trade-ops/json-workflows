@@ -1,0 +1,383 @@
+{
+  "name": "approved products-publish",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "02d3868b-eb58-4bb2-b227-32415186b07d",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appMsnHMgCFrIJOyd",
+          "mode": "list",
+          "cachedResultName": "Dropship OS",
+          "cachedResultUrl": "https://airtable.com/appMsnHMgCFrIJOyd"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblmnem8cNfkEqtDF",
+          "mode": "list",
+          "cachedResultName": "Products",
+          "cachedResultUrl": "https://airtable.com/appMsnHMgCFrIJOyd/tblmnem8cNfkEqtDF"
+        },
+        "filterByFormula": "AND(status='approved')",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        208,
+        0
+      ],
+      "id": "52f8e862-bd3d-44cf-84a9-b4aee8cb5e59",
+      "name": "Search records",
+      "executeOnce": false,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "DzcofrIEKRt7REFn",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        416,
+        0
+      ],
+      "id": "5988c87a-6436-4e26-88d7-86a6c6c4be6b",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/responses",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-5-mini\",\n  \"input\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You create Shopify product listings. Return ONLY valid JSON. No markdown. No code fences.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Create a Shopify product listing.\\\\n\\\\nPRODUCT DATA:\\\\nTitle: {{ $json.context.title }}\\\\nSupplier: {{ $json.context.supplier }}\\\\nSupplier URL: {{ $json.context.supplier_url }}\\\\nCost: {{ $json.context.cost }}\\\\nSuggested price: {{ $json.context.suggested_price }}\\\\nWhy it wins: {{ $json.context.why_it_wins }}\\\\nRisks: {{ $json.context.risks }}\\\\nSEO keywords: {{ $json.context.seo_keywords }}\\\\nImage URLs: {{ ($json.context.image_urls || []).join(' | ') }}\\\\n\\\\nREQUIREMENTS:\\\\n- descriptionHtml must be clean Shopify-safe HTML (only: <p>, <ul>, <li>, <strong>, <h2>, <br>).\\\\n- No medical claims.\\\\n- price must be the suggested_price.\\\\n- compare_at_price must always be present: number OR null.\\\\n- tags: 6-12 short tags.\\\\n- sku: short, simple, uppercase, no spaces.\\\\n\\\\nReturn JSON with: title, descriptionHtml, tags, seo_title, seo_description, sku, price, compare_at_price, image_urls.\"\n    }\n  ],\n  \"text\": {\n    \"format\": {\n      \"type\": \"json_schema\",\n      \"name\": \"listing\",\n      \"strict\": true,\n      \"schema\": {\n        \"type\": \"object\",\n        \"additionalProperties\": false,\n        \"properties\": {\n          \"title\": { \"type\": \"string\" },\n          \"descriptionHtml\": { \"type\": \"string\" },\n          \"tags\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } },\n          \"seo_title\": { \"type\": \"string\" },\n          \"seo_description\": { \"type\": \"string\" },\n          \"sku\": { \"type\": \"string\" },\n          \"price\": { \"type\": \"number\" },\n          \"compare_at_price\": { \"anyOf\": [ { \"type\": \"number\" }, { \"type\": \"null\" } ] },\n          \"image_urls\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } }\n        },\n        \"required\": [\n          \"title\",\n          \"descriptionHtml\",\n          \"tags\",\n          \"seo_title\",\n          \"seo_description\",\n          \"sku\",\n          \"price\",\n          \"compare_at_price\",\n          \"image_urls\"\n        ]\n      }\n    }\n  }\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        784,
+        64
+      ],
+      "id": "d25eb643-14c2-4dcb-a5c7-2fbd7b3065a3",
+      "name": "HTTP Request",
+      "credentials": {
+        "openAiApi": {
+          "id": "WIHz1cTpIL3mNXqc",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Input is one Airtable product record at a time (from Loop Over Items)\n\nconst p = items[0].json;\n\n// image_urls in your table looks newline-separated. We'll support commas too.\nconst raw = (p.image_urls || \"\").trim();\n\nconst imageUrls = raw\n  .split(/\\s*[\\n,]\\s*/g)        // split by newline OR comma\n  .map(s => s.trim())\n  .filter(Boolean)\n  .slice(0, 3);                 // Shopify: keep it simple, max 3 images\n\n// Build a clean prompt context (we keep your original fields)\nconst context = {\n  title: p.title,\n  supplier: p.supplier,\n  supplier_url: p.Supplier_url,  // capital S in Airtable output\n  cost: Number(p.cost || 0),\n  suggested_price: Number(p.suggested_price || 0),\n  margin_multiplier: Number(p.margin_multiplier || 0),\n  why_it_wins: p.why_it_wins || \"\",\n  risks: p.risks || \"\",\n  seo_keywords: p.seo_keywords || \"\",\n  image_urls: imageUrls,\n  fingerprint: p.fingerprint || \"\",\n  airtable_record_id: p.id\n};\n\nreturn [{ json: { airtable: p, context } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        576,
+        64
+      ],
+      "id": "e133e2b1-eba6-4c36-9b40-d2cb82e0081f",
+      "name": "4 - Prepare Context"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://nexora-supply-co.myshopify.com/admin/api/2025-10/graphql.json",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "shopifyAccessTokenApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"query\": \"mutation ProductCreate($input: ProductInput!) { productCreate(input: $input) { product { id handle title } userErrors { field message } } }\",\n  \"variables\": {\n    \"input\": {\n      \"title\": {{ JSON.stringify(($json.listing && $json.listing.title) ? $json.listing.title : (($json.title) ? $json.title : \"\")) }},\n      \"descriptionHtml\": {{ JSON.stringify(($json.listing && $json.listing.descriptionHtml) ? $json.listing.descriptionHtml : \"\") }},\n      \"vendor\": {{ JSON.stringify(($json.airtable && $json.airtable.supplier) ? $json.airtable.supplier : (($json.supplier) ? $json.supplier : \"\")) }},\n      \"productType\": \"General\",\n      \"tags\": {{ JSON.stringify(($json.listing && Array.isArray($json.listing.tags)) ? $json.listing.tags : []) }},\n      \"seo\": {\n        \"title\": {{ JSON.stringify(($json.listing && $json.listing.seo_title) ? $json.listing.seo_title : \"\") }},\n        \"description\": {{ JSON.stringify(($json.listing && $json.listing.seo_description) ? $json.listing.seo_description : \"\") }}\n      }\n    }\n  }\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1200,
+        64
+      ],
+      "id": "fad953fd-d589-4dcb-8886-d0acce54327e",
+      "name": "HTTP Request1",
+      "credentials": {
+        "shopifyAccessTokenApi": {
+          "id": "hmW6aMpH08OwJ8om",
+          "name": "Shopify Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const res = items[0].json;\n\n// 1) If Shopify returned top-level GraphQL errors, stop and show them\nif (Array.isArray(res.errors) && res.errors.length) {\n  throw new Error(\"Shopify GraphQL errors: \" + JSON.stringify(res.errors));\n}\n\n// 2) Make sure productCreate exists\nconst pc = res.data?.productCreate;\nif (!pc) {\n  throw new Error(\"No data.productCreate in response: \" + JSON.stringify(res).slice(0, 800));\n}\n\n// 3) Shopify userErrors (these are different from top-level errors)\nconst userErrors = pc.userErrors || [];\nif (userErrors.length) {\n  throw new Error(\"Shopify productCreate userErrors: \" + JSON.stringify(userErrors));\n}\n\n// 4) Extract IDs\nconst product = pc.product;\nif (!product?.id) throw new Error(\"No product returned: \" + JSON.stringify(pc).slice(0, 800));\n\nconst productId = product.id;\nconst variantId = product.variants?.nodes?.[0]?.id || null;\nconst handle = product.handle || null;\n\n// 5) Pull forward your listing/context from Node 6 (rename if needed)\nconst prev = $items(\"6 - Parse Listing\")[0].json;\n\nreturn [{\n  json: {\n    ...prev,\n    shopify: { productId, variantId, handle }\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1408,
+        64
+      ],
+      "id": "357ff22e-92eb-4451-a645-ce894c6f810c",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "jsCode": "// We want the JSON text from Responses API. This parser is defensive.\nconst input = items[0].json;\n\n// Find a text chunk anywhere in response.output\nlet text = null;\n\nif (Array.isArray(input.output)) {\n  for (const out of input.output) {\n    if (Array.isArray(out.content)) {\n      for (const c of out.content) {\n        if (typeof c.text === \"string\") {\n          text = c.text;\n          break;\n        }\n      }\n    }\n    if (text) break;\n  }\n}\n\nif (!text) {\n  throw new Error(\"OpenAI response did not contain output.content.text\");\n}\n\nlet listing;\ntry {\n  listing = JSON.parse(text);\n} catch (e) {\n  throw new Error(\"Failed to parse listing JSON. Raw text: \" + text.slice(0, 500));\n}\n\n// Bring forward the Airtable + context from Node 4 (available via $input.all() only if wired)\n// In n8n, easiest is: rely on previous node data already merged in chain.\n// If your chain is Node4 -> Node5 -> Node6, then Node5 input isn't carried.\n// So we re-fetch Node4's item using $items().\nconst prev = $items(\"4 - Prepare Context\")[0].json; // Node 4 is named \"Code\" by default - rename it if you want.\n\nreturn [{\n  json: {\n    airtable: prev.airtable,\n    context: prev.context,\n    listing\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        992,
+        64
+      ],
+      "id": "6eb0cfa6-aee5-4b29-9c07-8f2a4edc808b",
+      "name": "6 - Parse Listing"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Node 9 - Build Media Inputs (safe version: no redeclare issues)\n\nvar input = $json || {};\n\n// These might exist in different shapes depending on your previous nodes\nvar listingObj = (input && input.listing) ? input.listing : {};\nvar airtableObj = (input && input.airtable) ? input.airtable : input;\n\n// Grab urls from either listing.image_urls or airtable.image_urls\nvar raw = (listingObj && listingObj.image_urls != null)\n  ? listingObj.image_urls\n  : (airtableObj && airtableObj.image_urls != null)\n    ? airtableObj.image_urls\n    : [];\n\n// Normalize to an array of strings\nvar urls = [];\nif (Array.isArray(raw)) {\n  urls = raw;\n} else if (typeof raw === \"string\") {\n  urls = raw\n    .split(/\\s*,\\s*|\\s*\\n\\s*|\\s*\\|\\s*/g) // comma OR newline OR pipe separated\n    .map(s => s.trim())\n    .filter(Boolean);\n} else {\n  urls = [];\n}\n\n// Keep only real http(s) links, limit count\nurls = urls\n  .filter(u => typeof u === \"string\" && /^https?:\\/\\//i.test(u))\n  .slice(0, 10);\n\n// Build Shopify CreateMediaInput[]\nvar altText = (listingObj && listingObj.title) ? listingObj.title : (airtableObj.title || \"Product image\");\n\nvar media = urls.map(u => ({\n  mediaContentType: \"IMAGE\",\n  originalSource: u,\n  alt: altText\n}));\n\nreturn [\n  {\n    json: {\n      ...input,\n      media,\n      media_urls: urls\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1616,
+        64
+      ],
+      "id": "31e4106a-8b83-4fa9-82e2-cb7d7e41f405",
+      "name": "9 - Build Media Inputs"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://nexora-supply-co.myshopify.com/admin/api/2025-10/graphql.json",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "shopifyAccessTokenApi",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "=mutation ProductCreateMedia($productId: ID!, $media: [CreateMediaInput!]!) {\n  productCreateMedia(productId: $productId, media: $media) {\n    media {\n      ... on MediaImage {\n        id\n        image { url }\n      }\n    }\n    mediaUserErrors { field message }\n  }\n}\n"
+            },
+            {
+              "name": "variables",
+              "value": "=={{ (\n  {\n    productId: ($json.shopify && $json.shopify.productId)\n      ? $json.shopify.productId\n      : ($json.productId || \"\"),\n\n    media: Array.isArray($json.media) ? $json.media : []\n  }\n) }}\n"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2064,
+        48
+      ],
+      "id": "6ba49c2f-ade1-4a43-873c-ea6e6a886974",
+      "name": "10 - Shopify productCreateMedia",
+      "credentials": {
+        "shopifyAccessTokenApi": {
+          "id": "hmW6aMpH08OwJ8om",
+          "name": "Shopify Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "5e8fd2cb-d6b5-46a8-84ee-beae82931b07",
+              "leftValue": "={{ ($json.shopify && $json.shopify.productId) ? $json.shopify.productId : \"\" }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "66ab1577-2301-4c5d-a2a0-5dcb6825b8a8",
+              "leftValue": "={{ Array.isArray($json.media) ?$json.media.length : 0 }}\n",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1824,
+        64
+      ],
+      "id": "4288052f-b02e-4478-91b5-365410154998",
+      "name": "If"
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Search records",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search records": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "4 - Prepare Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "6 - Parse Listing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "4 - Prepare Context": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "9 - Build Media Inputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "6 - Parse Listing": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "9 - Build Media Inputs": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "10 - Shopify productCreateMedia": {
+      "main": [
+        []
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "10 - Shopify productCreateMedia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "pinData": {},
+  "triggerCount": 0,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

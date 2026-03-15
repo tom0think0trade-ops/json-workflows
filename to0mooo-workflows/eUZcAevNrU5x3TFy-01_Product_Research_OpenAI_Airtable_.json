@@ -1,0 +1,172 @@
+{
+  "name": "01 - Product Research (OpenAI -> Airtable)",
+  "nodes": [
+    {
+      "parameters": {},
+      "name": "Cron Daily 9am",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "036bb9f7-d6b4-4894-8162-8be73bcdf9b5"
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appprUsYIkzAVAiyZ",
+          "mode": "list",
+          "cachedResultName": "dropship os",
+          "cachedResultUrl": "https://airtable.com/appprUsYIkzAVAiyZ"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblHJ2NzLYEFXdcUr",
+          "mode": "list",
+          "cachedResultName": "Settings",
+          "cachedResultUrl": "https://airtable.com/appprUsYIkzAVAiyZ/tblHJ2NzLYEFXdcUr"
+        },
+        "filterByFormula": "active=TRUE()",
+        "returnAll": false,
+        "limit": 1,
+        "options": {}
+      },
+      "name": "Get Settings",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "54336883-24f9-4388-8418-6cfde5542a02",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "FVwkpEFSNHjnoQsL",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/responses",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": {
+          "model": "gpt-5-mini",
+          "input": [
+            {
+              "role": "system",
+              "content": "You are an ecommerce product researcher. Return ONLY valid JSON."
+            },
+            {
+              "role": "user",
+              "content": "Find 5 dropshipping products that are legal in Australia without a license, likely to sell worldwide, non-medical, non-branded. Return JSON with: products:[{product_name,niche,why_good,supplier_hint,est_cost,suggested_price,margin_multiplier,image_urls}]"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "OpenAI Product Research",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        464,
+        0
+      ],
+      "id": "980b5807-eef9-4ee5-9e13-a00575040912"
+    },
+    {
+      "parameters": {
+        "jsCode": "const text = items[0].json.output[0].content[0].text;\nconst data = JSON.parse(text);\nreturn data.products.map(p => ({ json: p }));"
+      },
+      "name": "Parse Products",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        704,
+        0
+      ],
+      "id": "45ab7e4e-80dc-435e-be35-7eb13e5dc7fe"
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "options": {}
+      },
+      "name": "Create Product Rows",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [
+        960,
+        0
+      ],
+      "id": "f2427be0-30dc-491f-93e5-f3d1187fe325",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "FVwkpEFSNHjnoQsL",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Get Settings": {
+      "main": [
+        [
+          {
+            "node": "OpenAI Product Research",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Product Research": {
+      "main": [
+        [
+          {
+            "node": "Parse Products",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Products": {
+      "main": [
+        [
+          {
+            "node": "Create Product Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "pinData": {},
+  "triggerCount": 0,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}
